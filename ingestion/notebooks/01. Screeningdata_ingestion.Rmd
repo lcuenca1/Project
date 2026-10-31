@@ -1,0 +1,70 @@
+---
+title: "Screening dataset 1"
+author: "Leyla C"
+date: "2026-10-30"
+output: html_document
+---
+
+# **Screening DATASET**
+
+This markdown's purpose is to do the ingestion and cleaning of the Lima Centro cervical cancer screening dataset. The goal is to preserve the original data, correct data types, identify missing or unusual values.
+
+**Download dataset and libraries**
+
+```{r}
+#Libraries
+library(tidyverse)
+library(lubridate)
+```
+```{r}
+#import dataset
+screening_data <- read.csv(file.choose())
+```
+
+Overview of dataset
+
+```{r}
+head(screening_data)
+```
+
+```{r}
+str(screening_data)
+```
+What it needs to be fixed on this dataset is:
+1. convert the three date fields into proper dates
+2. Keep missing results as missing cvalues
+
+### 1. Fix dates columns
+
+```{r}
+screening_clean <- screening_data |>
+  mutate(
+    CUTOFF_DATE = as.Date(as.character(CUTOFF_DATE), format = "%Y%m%d"),
+    CARE_DATE = as.Date(as.character(CARE_DATE), format = "%Y%m%d"),
+    RESULT_DATE = as.Date(as.character(as.integer(RESULT_DATE)), format = "%Y%m%d"))
+
+head(screening_clean)
+```
+
+### Checking missing values on the RESULT column
+
+```{r}
+table(screening_clean$FINAL_RESULT, useNA = "ifany")
+
+```
+From the dataset, 6323 rows are missing results. But for the sake of the project and future analysus I will leave it blank
+
+### Exporting new dataset
+
+```{r}
+write_csv(
+  screening_clean,
+  "screening_lima_2023_clean.csv"
+)
+
+```
+
+
+
+
+
