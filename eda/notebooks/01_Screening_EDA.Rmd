@@ -1,0 +1,132 @@
+---
+title: "01_Screenings_EDA"
+author: "Leyla C"
+date: "2026-11-01"
+output: html_document
+---
+
+# Exploratory Data Analysis - Screenings Dataset
+
+```{r}
+library(readr)
+library(dplyr)
+library(ggplot2)
+
+screening <- read_csv(file.choose())
+```
+```{r}
+head(screening)
+```
+
+**Overview**
+
+```{r}
+str(screening)
+dim(screening)
+summary(screening$AGE)
+```
+The dataset contains 17,479 screening records and 11 variables including City, Age, Final results, etc.. Ages vary substantially across the dataset whith the younger person screened at 0 years which can show an error on data collection, to the max age at 82 years old.
+
+**- Age Distribution**
+
+```{r}
+screening <- screening |>
+  mutate(
+    AGE_GROUP = case_when(
+      AGE >= 20 & AGE <= 29 ~ "20-29",
+      AGE >= 30 & AGE <= 39 ~ "30-39",
+      AGE >= 40 & AGE <= 49 ~ "40-49",
+      AGE >= 50 & AGE <= 59 ~ "50-59",
+      AGE >= 60 ~ "60+",
+      TRUE ~ "Under 20"))
+
+table(screening$AGE_GROUP)
+```
+Age was grouped into broader categories to make the screening population easier to compare. These groups will later be used to examine whether screening outcomes differ across age groups.
+
+**- Screening Outcomes**
+
+Because of many missing results, I would separate recorded from missing results
+
+```{r}
+screening_results <- screening |>
+  filter(!is.na(FINAL_RESULT))
+table(screening_results$FINAL_RESULT)
+```
+Missing results were excluded from outcome-based calculations but were not removed from the original processed dataset. After analyzing it we can tell that around 6000 cases had missing results.
+
+Graphing Age distribution by screened woman
+
+```{r}
+ggplot(screening, aes(x = AGE)) +
+  geom_histogram(binwidth = 5, color = "white") +
+  labs(
+    title = "Age Distribution of Women Screened for Cervical Cancer",
+    subtitle = "Lima, 2023",
+    x = "Age",
+    y = "Number of Screening Records"
+  ) +
+  theme_minimal()
+```
+Most screening activity is concentrated among adult women, while very young ages are uncommon. This helps describe the population reached by the screening program.
+
+
+
+**- Positive results by Age groups**
+
+Look to see how many positive results existed in each age group created, as this information is the most important from this dataset.
+
+```{r}
+age_positive_rate <- screening_results |>
+  filter(AGE >= 20) |>
+  group_by(AGE_GROUP) |>
+  summarise( TOTAL = n(),
+    POSITIVE = sum(FINAL_RESULT == "POSITIVE"),
+    POSITIVE_RATE = POSITIVE / TOTAL)
+age_positive_rate
+```
+Positive screening rates were similar across the adult age groups, with no large difference. This suggests that age may not show a strong pattern in screening positivity by itself, although later statistical testing can evaluate the relationship more formally.
+
+Positive screening rate by age group
+
+```{r}
+screening_graph <- screening |>
+  filter(!is.na(FINAL_RESULT), AGE >= 20) |>
+  mutate( AGE_GROUP = case_when(
+      AGE < 30 ~ "20–29",
+      AGE < 40 ~ "30–39",
+      AGE < 50 ~ "40–49",
+      AGE < 60 ~ "50–59",
+      TRUE ~ "60+"))
+
+age_positive_rate <- screening_graph |>
+  group_by(AGE_GROUP) %>%
+  summarise( TOTAL = n(),
+    POSITIVE = sum(FINAL_RESULT == "POSITIVE"),
+    POSITIVE_RATE = POSITIVE / TOTAL)
+
+ggplot(age_positive_rate, aes(x = POSITIVE_RATE, y = AGE_GROUP)) +
+  geom_segment( aes(x = 0, xend = POSITIVE_RATE, yend = AGE_GROUP),
+    color = "purple") +
+  geom_point(size = 4, color = "black") +
+  scale_x_continuous(labels = scales::percent) +
+  labs( title = "Positive Screening Rate by Age Group",
+    x = "Positive Screening Rate",
+    y = "Age Group") +
+  theme_minimal()
+```
+This dot plot compares positive cervical cancer screening rates across age groups. The rates are relatively similar across all groups, suggesting that no age group has a dramatically higher positive screening rate. Women ages 50–59 show the highest rate, while ages 30–39 show the lowest, but the differences appear small overall.
+
+
+**- Geographic Exploration**
+
+Where is screening ocurring? In which districts these screenings had been taken the most?
+
+```{r}
+screening |>
+  count(DISTRICT, sort = TRUE)
+```
+
+Screening activity was also examined by district to identify where most screening records were concentrated. These counts help describe the geographic reach of the screening program and provide context for later comparisons of positive results by location. Through this anaysis we can tell that the districts of San Juan de Lurigancho and Lima Centro have the largest group of people that were screened.
+
+
