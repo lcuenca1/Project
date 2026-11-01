@@ -1,0 +1,88 @@
+---
+title: "02_INEN_data_clean"
+author: "Leyla C"
+date: "2026-10-31"
+output: html_document
+---
+# **National Instute of Cancer in Peru Dataset**
+
+This markdown's purpose is to do the ingestion and cleaning of the dataset containing information of Cervix cancer patients recorded at the INEN, whom were diagnosed between the years of 2018 - 2019.
+
+**Download libraries and dataset**
+
+```{r}
+library(readxl)
+library(dplyr)
+library(readr)
+```
+
+```{r}
+#import dataset
+INEN_raw <- read_excel(file.choose())
+
+```
+
+Check dataset
+
+```{r}
+head(INEN_raw)
+
+```
+
+
+```{r}
+str(INEN_raw)
+```
+
+What it needs to fixed in my dataset:
+
+1. convert Affiliation_Date and Last_Visit into real dates.
+2. Convert Stage = NOT RECORDED into NA
+3. Remove the column of ays between affiliation and last visit, since won't be use in my future analysi; and Location since all the dataset is about cervix cancer.
+
+
+### 1. Fix dates columns
+```{r}
+inen_clean <- INEN_raw %>%
+  mutate( Affiliation_Date = as.Date( Affiliation_Date,
+      origin = "1899-12-30"),
+    Last_Visit = as.Date( Last_Visit,
+      origin = "1899-12-30")
+  )
+head(inen_clean)
+```
+
+### 2. Changing all Not recorded values in Stage column to NAs
+
+```{r}
+inen_clean <- inen_clean %>%
+  mutate(
+    Stage = na_if(Stage, "NOT RECORDED"))
+  
+```
+
+```{r}
+#Cheking number of cases on each statge
+
+table(inen_clean$Stage, useNA = "ifany")
+```
+
+### 3. Remove unnecesary columns
+
+```{r}
+inen_clean <- inen_clean %>%
+  select(
+    -AP,
+    -Location,
+    -`Days between affiliation and Last visit`)
+
+head(inen_clean)
+```
+
+Export clean dataset
+
+```{r}
+write_csv( inen_clean,
+  "02.inen_cervical_data.csv")
+```
+
