@@ -1,0 +1,129 @@
+---
+title: "03_Detailed_INEN"
+author: "Leyla C"
+date: "2026-11-01"
+output: html_document
+---
+ 
+# **Detailed INEN Dataset**
+
+The purpose of this code is to do the ingestion and cleaning of the subdataset, that was extracted from the INEN dataset but it contains more detailes on each case.
+
+**Download dataset and libraries**
+
+```{r}
+library(readxl)
+library(dplyr)
+library(stringr)
+library(readr)
+```
+
+```{r}
+#import datase, I especifically calling 31 columns 
+detailed_inen <- read_excel(
+  file.choose(),
+  range = cell_cols("A:AE")
+)
+
+```
+
+Inspect dataset
+
+```{r}
+head(detailed_inen)
+```
+
+```{r}
+str(detailed_inen)
+```
+
+What it needs to be fixed on this dataset is:
+
+1. Remove the one blank row
+2. Reformatting variables name 
+3. Create one extra grouped stage variable (I, II, II, IV) so it will be easier to analyze.
+4. Standarize all tumor size data into centimeters.
+5. Clean follow-up months into numeric form.
+
+
+### 1. Removing blank row
+
+```{r}
+detailed_clean <- detailed_inen |>
+  filter(if_any(everything(), ~ !is.na(.)))
+```
+
+### 2. Fixing the variables titles
+
+```{r}
+detailed_clean <- detailed_clean |>
+  rename(
+    AGE_AT_DIAGNOSIS = `AGE (at diagnosis)`,
+    CLINICAL_STAGE = `DISEASE STAGE (CLINICAL STAGE)`,
+    TUMOR_SIZE = `TUMOR SIZE`,
+    TUMOR_GRADE = `TUMOR GRADE`,
+    DX_DATE = `DX DATE`,
+    LAST_FOLLOW_UP_DATE = `Last FU DATE`,
+    FOLLOW_UP_MONTHS = `FOLLOW UP (MONTHS)`,
+    LYMPH_NODE_METASTASIS = `REGIONAL/ REMOTE LN METASTASIS`)
+
+```
+
+```{r}
+names(detailed_clean)
+```
+### 3. Create simplified clinical Stage variable 
+
+```{r}
+detailed_clean <- detailed_clean %>%
+  mutate(STAGE_GROUP = case_when(
+      grepl("^IV", CLINICAL_STAGE) ~ "IV",
+      grepl("^III", CLINICAL_STAGE) ~ "III",
+      grepl("^II", CLINICAL_STAGE) ~ "II",
+      grepl("^I", CLINICAL_STAGE) ~ "I",
+      TRUE ~ NA_character_))
+
+table(detailed_clean$STAGE_GROUP, useNA = "ifany")
+```
+
+### 4. Standarized Tumor Size to CM
+
+```{r}
+# Checking how the size is presented
+detailed_clean$TUMOR_SIZE <- as.character(detailed_clean$TUMOR_SIZE)
+detailed_clean$TUMOR_SIZE
+```
+```{r}
+# Reformatting everything to CM
+detailed_clean$TUMOR_SIZE <- ifelse(
+  grepl("MM", detailed_clean$TUMOR_SIZE, ignore.case = TRUE),
+  as.numeric(sub(" .*", "", detailed_clean$TUMOR_SIZE)) / 10,
+  as.numeric(sub(" .*", "", detailed_clean$TUMOR_SIZE)))
+detailed_clean$TUMOR_SIZE
+
+```
+
+### 5.Clean Follow-up Months
+```{r}
+detailed_clean <- detailed_clean |>
+  mutate(FOLLOW_UP_MONTHS = as.numeric(str_extract(as.character(FOLLOW_UP_MONTHS), "[0-9.]+")))
+```
+
+
+Final Checks n digestion process
+
+```{r}
+dim(detailed_clean)
+```
+```{r}
+colSums(is.na(detailed_clean))
+```
+
+Export clean dataset
+
+```{r}
+write_csv(
+  detailed_clean,
+  "inen_detailed_subset.csv")
+```
+
