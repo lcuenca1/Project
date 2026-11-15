@@ -1,0 +1,113 @@
+---
+title: "03_Detailed_INEN_EDA"
+author: "Leyla C"
+date: "2026-11-15"
+output: html_document
+---
+
+# Exploratory Data Analysis - Detailed INEN cervical Cancer Cases
+
+```{r}
+library(readr)
+library(dplyr)
+library(ggplot2)
+detailed <- read_csv(file.choose())
+```
+This exploratory analysis uses the detailed INEN cervical cancer subset to analyse  clinical characteristics that are not available in the larger dataset of around 167 patients. The focus is on how tumor size, lymph-node involvement, and tumor grade vary across disease stages.
+
+**Overview**
+
+```{r}
+dim(detailed)
+str(detailed)
+
+```
+
+**- Tumor Size by Stage**
+
+First, is needed to make a summary table of tumor size for each stage.
+
+```{r}
+detailed %>%
+  group_by(STAGE_GROUP) |>
+  summarise( N = n(),
+    MEDIAN_TUMOR_SIZE = median(TUMOR_SIZE, na.rm = TRUE),
+    MEAN_TUMOR_SIZE = mean(TUMOR_SIZE, na.rm = TRUE)
+  )
+```
+* N means number of patients on stage group. Also, all values  of size are in cm.
+
+Then I will create a boxplot but with individual patients dots, since is not a big amount of patients it would be clear to understand.
+
+```{r}
+ggplot(detailed, aes(x = STAGE_GROUP, y = TUMOR_SIZE)) +
+  geom_boxplot(outlier.shape = NA, width = 0.5) +
+  geom_jitter(width = 0.15, alpha = 0.5) +
+  labs(
+    title = "Tumor Size Distribution Across Clinical Stages",
+    subtitle = "Detailed INEN cervical cancer subset",
+    x = "Clinical Stage",
+    y = "Tumor Size (cm)") +
+  theme_minimal()
+```
+
+This awkward looking dotplot is showing an imbalanced on recorded data. Stage I tumors are generally smaller, while Stage II and Stage III tumors tend to be larger and show considerable overlap. This relationship is meaningful to the project because tumor size is one of the clinical characteristics being used to understand how disease profiles differ across stages.
+
+The graph also reveals an important limitation of the dataset. The number of patients is very uneven across stages: Stage II contains most of the observations, while Stage IV contains only one patient. This is why the Stage IV boxplot appears as a single line instead of a full distribution. Rather than removing this result, the imbalance is useful to show because it helps explain how the structure of the dataset may affect later comparisons and statistical analysis.
+
+
+**- Lymph node involvement by stage**
+
+Lymph nodes are small structures in the body that are part of the immune system. They help filter harmful substances and can also be places where cancer cells spread.
+In cervical cancer, lymph-node involvement is important because it helps doctors understand how far the cancer has spread. If cancer is found in certain lymph nodes in the pelvis or near the aorta, this can be part of the reason a patient is classified as Stage IIIC.
+
+Lymph-node involvement is also important because it can give doctors information about how serious or advanced the disease may be and can help with treatment planning and prognosis.
+For this project, lymph-node involvement should not be described as something that causes a higher stage. Instead, it is one of the clinical features doctors use to describe the extent of the disease and, in some cases, to determine the stage.
+
+Source: https://www.cancer.gov/types/cervical/hp/cervical-treatment-pdq?utm
+
+To simplify the analysis, first I will change the lymph-node variable into Yes/ No, instead of the specific types of lymph nodes in case they are involved
+
+```{r}
+detailed <- detailed |>
+  mutate(
+    LYMPH_NODE_GROUP = ifelse(
+      LYMPH_NODE_METASTASIS == "NO",
+      "No", "Yes"))
+```
+
+And then, a summary by stage
+
+```{r}
+lymph_stage <- detailed |>
+  count(STAGE_GROUP, LYMPH_NODE_GROUP) |>
+  group_by(STAGE_GROUP) |>
+  mutate(
+    PERCENT = n / sum(n) * 100)
+
+lymph_stage
+```
+
+Lymph-node involvement was uncommon in Stage I and Stage II patients, appearing in about 6% and 9% of cases, respectively. In Stage III, however, more than half of the patients had lymph-node involvement. This suggests that lymph-node involvement is more common in later-stage disease in this subset. This does not mean lymph-node involvement causes Stage III, It means they are strongly related in the way the disease is classified and described. Stage IV included only one patient, so that result should be interpreted as not a definitive conclusion.
+
+Now plotting the results
+
+```{r}
+ggplot(
+  lymph_stage, aes(
+    x = STAGE_GROUP,
+    y = n,
+    fill = LYMPH_NODE_GROUP)) +
+  geom_col(position = "dodge") +
+  geom_text(
+    aes(label = n),
+    position = position_dodge(width = 0.9),
+    vjust = -0.3) +
+  labs( title = "Lymph-Node Involvement Across Clinical Stages",
+    subtitle = "Detailed INEN cervical cancer subset",
+    x = "Clinical Stage",
+    y = "Number of Patients",
+    fill = "Lymph-Node Involvement") +
+  theme_minimal()
+```
+This pattern is meaningful because lymph-node involvement is an important feature used to describe how far cervical cancer has spread. The graph also makes the unequal number of patients across stages very clear, which is important when interpreting the results.
