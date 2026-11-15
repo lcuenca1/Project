@@ -1,0 +1,99 @@
+---
+title: "02_ INEN_EDA"
+author: "Leyla C"
+date: "2026-11-01"
+output: html_document
+---
+
+# Exploratory Data Analysis - INEN cervical Cancer Cases
+
+```{r}
+library(readr)
+library(dplyr)
+library(ggplot2)
+inen <- read_csv(file.choose())
+```
+
+**Overview**
+
+```{r}
+dim(inen)
+names(inen)
+str(inen)
+```
+
+This dataset contains 791 cases of patients that were diagnosed with cancer between the years of 2018 - 2019 at the National Institute of Oncology in Peru.
+Also, it has 9 variables such as Age, Stage, STate of residency, Last visit, etc.
+
+First with the main variables I will use, I will organize and analyze the information.
+
+**- Create Age Groups**
+
+```{r}
+inen <- inen |>
+  mutate( AGE_GROUP = case_when(
+      Age >= 20 & Age <= 39 ~ "20–39",
+      Age >= 40 & Age <= 59 ~ "40–59",
+      Age >= 60 ~ "60+",
+      TRUE ~ NA_character_))
+table(inen$AGE_GROUP, useNA = "ifany")
+```
+Becaause this dataset is smaller than the Screening one, I use broader age groups. Observing this grouping, we can tll that most cases sit on the age range of 40 - 59 year old.
+
+**- Cancer Stages Across Age Groups**
+
+```{r}
+stage_age <- inen |>
+  filter(!is.na(Stage),!is.na(AGE_GROUP)) |>
+  count(AGE_GROUP, Stage) |>
+  group_by(AGE_GROUP) |>
+  mutate(PERCENT = n / sum(n) * 100)
+stage_age
+```
+
+```{r}
+ggplot(stage_age,
+       aes(x = AGE_GROUP, y = PERCENT, fill = Stage)) +
+  geom_col(position = "stack", color = "white") +
+  labs( title = "Cancer Stage Distribution Across Age Groups",
+    subtitle = "INEN cervical cancer patients, 2018–2019",
+    x = "Age Group",
+    y = "Percentage of Patients",
+    fill = "Stage") +
+  theme_minimal()
+```
+This 100% stacked bar chart compares cancer stage distributions across age groups. Stage II is the most common stage in all three age groups. Stage I represents a somewhat larger share among younger patients, while Stage III is somewhat more common among older patients. Stage IV is very rare, so no strong conclusion.
+
+**2. Number of cases by State of Residency**
+
+```{r}
+geo_counts <- inen |>
+  count(State_of_Residence, sort = TRUE)
+
+geo_counts
+```
+Most patients diagnoses with cervical cancer reside in Lima. This is important because INEN is located in Lima, so the patient distribution may partly reflect centralization of cancer care in the capital.
+
+Lima vs non-Lima
+```{r}
+inen |>
+  mutate(Residence_Group = ifelse(State_of_Residence == "LIMA", "Lima", "Other Departments")) |>
+  count(Residence_Group)
+```
+But as an overall, more cases diagnosed between 2018 - 2019 were from woman that came from outside the capital.
+
+**- Recorded Follow-up by State**
+
+```{r}
+followup_department <- inen |>
+  group_by(State_of_Residence) |>
+  summarise( PATIENTS = n(),
+    MEDIAN_FOLLOW_UP =
+      median(`Years Btween affiliation and last visit`,
+             na.rm = TRUE)) |>
+  filter(PATIENTS >= 10)
+followup_department
+```
+
+
+
